@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Events and Drive</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f1f3f4;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1, h2 {
+            color: #202124;
+            font-weight: 500;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin: 20px 0;
+            transition: transform 0.3s;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        label {
+            font-size: 14px;
+            color: #5f6368;
+        }
+
+        input[type="text"],
+        input[type="datetime-local"],
+        textarea {
+            padding: 12px;
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            font-size: 16px;
+            background: #f8f9fa;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: #1a73e8;
+            outline: none;
+        }
+
+        textarea {
+            resize: vertical;
+            height: 100px;
+        }
+
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #174ea6;
+        }
+
+        .file-upload-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #dadce0;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .upload-button {
+            background-color: #34a853;
+            padding: 10px 20px;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .upload-button:hover {
+            background-color: #2c8a3e;
+        }
+
+        #fileName {
+            font-size: 14px;
+            color: #5f6368;
+        }
+
+        #responseMessage {
+            margin-top: 15px;
+            padding: 12px;
+            text-align: center;
+            border-radius: 8px;
+        }
+
+        .success {
+            background-color: #e6f4ea;
+            color: #188038;
+        }
+
+        .error {
+            background-color: #fce8e6;
+            color: #d93025;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Create Google Calendar Event</h1>
+    <form id="eventForm">
+        <label for="summary">Event Summary:</label>
+        <input type="text" id="summary" name="summary" required>
+
+        <label for="location">Location:</label>
+        <input type="text" id="location" name="location">
+
+        <label for="description">Description:</label>
+        <textarea id="description" name="description"></textarea>
+
+        <label for="startDateTime">Start Date & Time:</label>
+        <input type="datetime-local" id="startDateTime" name="startDateTime" required>
+
+        <label for="endDateTime">End Date & Time:</label>
+        <input type="datetime-local" id="endDateTime" name="endDateTime" required>
+
+        <button type="submit">Create Event</button>
+    </form>
+</div>
+
+<div class="container">
+    <h2>Upload a File to Google Drive</h2>
+    <div class="file-upload-container">
+        <label for="fileInput" class="upload-button">Choose File</label>
+        <span id="fileName">No file chosen</span>
+    </div>
+    <input type="file" id="fileInput">
+    <button onclick="uploadFile()" class="upload-button">Upload</button>
+
+    <div id="responseMessage"></div>
+</div>
+
+<script>
+    document.getElementById('fileInput').addEventListener('change', function () {
+        const fileName = this.files[0] ? this.files[0].name : 'No file chosen';
+        document.getElementById('fileName').innerText = fileName;
+    });
+
+    document.getElementById('eventForm').addEventListener('submit', function (event) {
+        event.preventDefault();
+
+        const startDateTime = document.getElementById('startDateTime').value;
+        const endDateTime = document.getElementById('endDateTime').value;
+
+        if (new Date(startDateTime) >= new Date(endDateTime)) {
+            displayMessage('Start time must be before end time.', 'error');
+            return;
+        }
+
+        const eventDetails = {
+            summary: document.getElementById('summary').value,
+            location: document.getElementById('location').value,
+            description: document.getElementById('description').value,
+            start: { dateTime: new Date(startDateTime).toISOString(), timeZone: 'Asia/Kolkata' },
+            end: { dateTime: new Date(endDateTime).toISOString(), timeZone: 'Asia/Kolkata' }
+        };
+
+        fetch('/add-event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(eventDetails)
+        })
+        .then(response => response.text())
+        .then(data => displayMessage(data, 'success'))
+        .catch(() => displayMessage('Error occurred while creating the event.', 'error'));
+    });
+
+    function uploadFile() {
+        const file = document.getElementById('fileInput').files[0];
+        if (!file) return alert('Please select a file to upload.');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/upload-file', { method: 'POST', body: formData })
+            .then(response => response.text())
+            .then(result => displayMessage(result, 'success'))
+            .catch(() => displayMessage('Failed to upload file.', 'error'));
+    }
+
+    function displayMessage(message, type) {
+        const responseMessage = document.getElementById('responseMessage');
+        responseMessage.innerText = message;
+        responseMessage.className = type;
+    }
+</script>
+</body>
+</html>
